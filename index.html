@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AUN-QA Assessment Dashboard</title>
+    <title>AUN-QA Advanced Dashboard</title>
     
-    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -16,121 +15,93 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .filter-label { font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; }
+        .score-cell { font-weight: bold; text-align: center; width: 40px; }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
 
-    <!-- Header Section -->
-    <nav class="bg-blue-900 text-white p-4 shadow-lg">
+    <nav class="bg-[#1e293b] text-white p-4 sticky top-0 z-40 shadow-md">
         <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                <i class="fas fa-chart-line text-2xl text-blue-300"></i>
-                <h1 class="text-xl font-bold uppercase tracking-wider">AUN-QA Performance Dashboard</h1>
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-500 p-2 rounded-lg">
+                    <i class="fas fa-shield-halved text-xl"></i>
+                </div>
+                <h1 class="text-lg font-bold">AUN-QA Assessment Tracking</h1>
             </div>
-            <div class="text-sm bg-blue-800 px-3 py-1 rounded" id="lastUpdated">
-                สถานะ: กำลังโหลดข้อมูล...
-            </div>
+            <div id="lastUpdated" class="text-xs text-slate-400 font-mono text-right"></div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="container mx-auto p-4 md:p-6 space-y-6">
+    <main class="container mx-auto p-4 space-y-6">
         
-        <!-- Error & Loading State -->
-        <div id="loadingOverlay" class="fixed inset-0 bg-white bg-opacity-80 z-50 flex flex-col items-center justify-center">
-            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
-            <p class="text-blue-900 font-medium">กำลังประมวลผลข้อมูลจาก Google Sheets...</p>
-        </div>
-
-        <!-- Filter Section -->
-        <div class="card p-4 flex flex-wrap items-center gap-4">
+        <!-- Filters Section -->
+        <div class="card p-5 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div class="flex flex-col">
-                <label class="text-sm font-semibold text-gray-600 mb-1">กรองตามคณะ</label>
-                <select id="facultyFilter" class="border rounded-md px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none w-64">
+                <label class="filter-label">คณะ (Faculty)</label>
+                <select id="facultyFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="All">ทั้งหมดทุกคณะ</option>
                 </select>
             </div>
-            <div class="ml-auto text-gray-500 italic text-sm">
-                * ข้อมูลเชื่อมต่อกับ Google Sheet แบบ Real-time
+            <div class="flex flex-col">
+                <label class="filter-label">ปีการศึกษาที่ตรวจ (Year)</label>
+                <select id="yearFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="All">ทุกปีการศึกษา</option>
+                </select>
+            </div>
+            <div class="flex flex-col">
+                <label class="filter-label">สถานะการประเมิน (Status องค์ 1-8)</label>
+                <select id="statusFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="All">ทั้งหมด</option>
+                    <option value="Completed">ประเมินครบ 8 องค์ประกอบ</option>
+                    <option value="Pending">ยังประเมินไม่ครบ</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="resetFilters()" class="text-sm text-blue-600 hover:underline">ล้างตัวกรองทั้งหมด</button>
             </div>
         </div>
 
         <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="card p-5 border-l-4 border-blue-600">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium uppercase">หลักสูตรทั้งหมด</p>
-                        <h3 class="text-3xl font-bold text-gray-800" id="kpiTotal">0</h3>
-                    </div>
-                    <i class="fas fa-book-open text-blue-200 text-3xl"></i>
-                </div>
-            </div>
-            <div class="card p-5 border-l-4 border-amber-500">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium uppercase">ตรวจประเมินปี 2568</p>
-                        <h3 class="text-3xl font-bold text-gray-800" id="kpi2568">0</h3>
-                    </div>
-                    <i class="fas fa-calendar-check text-amber-200 text-3xl"></i>
-                </div>
-            </div>
-            <div class="card p-5 border-l-4 border-green-500">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium uppercase">ตรวจแล้ว (มีผลประเมิน)</p>
-                        <h3 class="text-3xl font-bold text-gray-800" id="kpiEvaluated">0</h3>
-                    </div>
-                    <i class="fas fa-check-circle text-green-200 text-3xl"></i>
-                </div>
-            </div>
-            <div class="card p-5 border-l-4 border-purple-500">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium uppercase">จำนวนคณะ</p>
-                        <h3 class="text-3xl font-bold text-gray-800" id="kpiFaculty">0</h3>
-                    </div>
-                    <i class="fas fa-university text-purple-200 text-3xl"></i>
-                </div>
-            </div>
+        <div id="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- KPIs dynamicly filled -->
         </div>
 
-        <!-- Charts Section -->
+        <!-- Visual Analytics -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="card p-4">
-                <h4 class="text-gray-700 font-bold mb-4 flex items-center">
-                    <i class="fas fa-chart-bar mr-2 text-blue-600"></i> จำนวนหลักสูตรแยกตามคณะ
-                </h4>
-                <div class="relative h-80">
-                    <canvas id="barChart"></canvas>
-                </div>
+            <div class="card p-6">
+                <h3 class="font-bold text-slate-700 mb-4 tracking-tight uppercase text-sm">การกระจายตัวของคะแนนเฉลี่ยรายคณะ</h3>
+                <div class="h-72"><canvas id="barChart"></canvas></div>
             </div>
-            <div class="card p-4">
-                <h4 class="text-gray-700 font-bold mb-4 flex items-center">
-                    <i class="fas fa-chart-pie mr-2 text-blue-600"></i> สัดส่วนระดับการศึกษา
-                </h4>
-                <div class="relative h-80">
-                    <canvas id="donutChart"></canvas>
-                </div>
+            <div class="card p-6">
+                <h3 class="font-bold text-slate-700 mb-4 tracking-tight uppercase text-sm">สัดส่วนระดับหลักสูตร</h3>
+                <div class="h-72"><canvas id="donutChart"></canvas></div>
             </div>
         </div>
 
-        <!-- Table Section -->
-        <div class="card p-6">
-            <h4 class="text-gray-700 font-bold mb-4">รายละเอียดหลักสูตรและผลการประเมิน</h4>
+        <!-- Detailed Table -->
+        <div class="card p-6 overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-700 uppercase text-sm">ตารางข้อมูลและคะแนนรายองค์ประกอบ (องค์ 1-8)</h3>
+            </div>
             <div class="overflow-x-auto">
-                <table id="courseTable" class="display w-full text-sm">
+                <table id="mainTable" class="display w-full text-xs hover" style="width:100%">
                     <thead>
-                        <tr class="bg-gray-100 text-left">
+                        <tr class="bg-slate-50">
                             <th>คณะ</th>
                             <th>หลักสูตร</th>
-                            <th>ระดับ</th>
-                            <th>ปีที่ตรวจ (ครั้งที่ 1)</th>
-                            <th>ผลการประเมิน</th>
+                            <th>ปีที่ตรวจ</th>
+                            <th>องค์ 1</th>
+                            <th>องค์ 2</th>
+                            <th>องค์ 3</th>
+                            <th>องค์ 4</th>
+                            <th>องค์ 5</th>
+                            <th>องค์ 6</th>
+                            <th>องค์ 7</th>
+                            <th>องค์ 8</th>
+                            <th>เฉลี่ย</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
@@ -139,183 +110,194 @@
         </div>
     </main>
 
+    <div id="loading" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl text-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-slate-600 font-medium">กำลังโหลดฐานข้อมูล AUN-QA...</p>
+        </div>
+    </div>
+
     <script>
-        // Configuration
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1UaRHmu-gK0qcn7tfsJENuFCIzJ9YCgpVWSWHLGGSNQ4/export?format=csv&gid=1573666531';
         
-        let rawData = [];
-        let barChart, donutChart, dataTable;
-
-        // Column Mapping (based on actual CSV headers)
+        // Data Mapping
         const COL = {
             FACULTY: 'คณะ',
             COURSE: 'หลักสูตร',
+            YEAR: 'ปีการศึกษาที่ต้องรับการตรวจประเมินครั้งที่ 1',
             LEVEL: 'ระดับการศึกษา',
-            YEAR_1: 'ปีการศึกษาที่ต้องรับการตรวจประเมินครั้งที่ 1',
-            RESULT_1: 'ผลครั้งที่ 1'
+            SCORE_START: 5 // Index where 'องค์ 1' usually starts in this specific CSV structure
         };
 
-        // Initialize Application
-        document.addEventListener('DOMContentLoaded', fetchData);
+        let rawData = [];
+        let charts = {};
+        let dataTable;
 
-        function fetchData() {
+        $(document).ready(() => {
+            fetchData();
+        });
+
+        async function fetchData() {
             Papa.parse(SHEET_URL, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
-                complete: function(results) {
+                complete: (results) => {
                     rawData = results.data;
-                    initDashboard(rawData);
-                    document.getElementById('loadingOverlay').classList.add('hidden');
-                    document.getElementById('lastUpdated').innerText = 'อัปเดตล่าสุด: ' + new Date().toLocaleTimeString();
-                },
-                error: function(err) {
-                    alert("ไม่สามารถดึงข้อมูลได้: " + err);
+                    initDashboard();
+                    $('#loading').fadeOut();
+                    $('#lastUpdated').text(`DATA SYNCED: ${new Date().toLocaleString()}`);
                 }
             });
         }
 
-        function initDashboard(data) {
-            populateFacultyFilter(data);
-            updateDashboard('All');
+        function initDashboard() {
+            populateSelect('facultyFilter', COL.FACULTY);
+            populateSelect('yearFilter', COL.YEAR);
             
-            // Event Listener for Filter
-            document.getElementById('facultyFilter').addEventListener('change', (e) => {
-                updateDashboard(e.target.value);
+            // Initial render
+            updateDisplay();
+
+            // Listeners
+            $('#facultyFilter, #yearFilter, #statusFilter').change(() => updateDisplay());
+        }
+
+        function populateSelect(id, colName) {
+            const values = [...new Set(rawData.map(i => i[colName]))].filter(Boolean).sort();
+            values.forEach(v => {
+                $(`#${id}`).append(`<option value="${v}">${v}</option>`);
             });
         }
 
-        function populateFacultyFilter(data) {
-            const faculties = [...new Set(data.map(item => item[COL.FACULTY]))].filter(Boolean).sort();
-            const select = document.getElementById('facultyFilter');
-            faculties.forEach(fac => {
-                const opt = document.createElement('option');
-                opt.value = fac;
-                opt.innerHTML = fac;
-                select.appendChild(opt);
+        function updateDisplay() {
+            const fFac = $('#facultyFilter').val();
+            const fYear = $('#yearFilter').val();
+            const fStat = $('#statusFilter').val();
+
+            const filtered = rawData.filter(row => {
+                const matchFac = fFac === 'All' || row[COL.FACULTY] === fFac;
+                const matchYear = fYear === 'All' || row[COL.YEAR] === fYear;
+                
+                // Logic for "Status องค์ 1-8"
+                const hasAllScores = row['องค์ 1'] && row['องค์ 2'] && row['องค์ 3'] && row['องค์ 4'] && row['องค์ 5'] && row['องค์ 6'] && row['องค์ 7'] && row['องค์ 8'];
+                const matchStat = fStat === 'All' || (fStat === 'Completed' ? hasAllScores : !hasAllScores);
+
+                return matchFac && matchYear && matchStat;
             });
-        }
 
-        function updateDashboard(selectedFaculty) {
-            const filteredData = selectedFaculty === 'All' 
-                ? rawData 
-                : rawData.filter(item => item[COL.FACULTY] === selectedFaculty);
-
-            renderKPIs(filteredData);
-            renderBarChart(filteredData);
-            renderDonutChart(filteredData);
-            renderTable(filteredData);
+            renderKPIs(filtered);
+            renderCharts(filtered);
+            renderTable(filtered);
         }
 
         function renderKPIs(data) {
-            document.getElementById('kpiTotal').innerText = data.length;
+            const total = data.length;
+            const avg = (data.reduce((sum, row) => sum + (parseFloat(row['องค์ 1']) || 0), 0) / (total || 1)).toFixed(2);
             
-            const count2568 = data.filter(item => String(item[COL.YEAR_1]).includes('2568')).length;
-            document.getElementById('kpi2568').innerText = count2568;
-
-            const evaluated = data.filter(item => item[COL.RESULT_1] && item[COL.RESULT_1].trim() !== '').length;
-            document.getElementById('kpiEvaluated').innerText = evaluated;
-
-            const uniqueFac = [...new Set(data.map(item => item[COL.FACULTY]))].length;
-            document.getElementById('kpiFaculty').innerText = uniqueFac;
+            const html = `
+                <div class="card p-5 border-b-4 border-blue-500">
+                    <p class="text-xs font-bold text-slate-400 uppercase">หลักสูตรที่เลือก</p>
+                    <h2 class="text-3xl font-extrabold text-slate-800">${total}</h2>
+                </div>
+                <div class="card p-5 border-b-4 border-emerald-500">
+                    <p class="text-xs font-bold text-slate-400 uppercase">ตรวจครบ 8 องค์ประกอบ</p>
+                    <h2 class="text-3xl font-extrabold text-slate-800">${data.filter(r => r['องค์ 1'] && r['องค์ 8']).length}</h2>
+                </div>
+                <div class="card p-5 border-b-4 border-amber-500">
+                    <p class="text-xs font-bold text-slate-400 uppercase">คะแนนเฉลี่ย (องค์ 1)</p>
+                    <h2 class="text-3xl font-extrabold text-slate-800">${avg}</h2>
+                </div>
+                <div class="card p-5 border-b-4 border-indigo-500">
+                    <p class="text-xs font-bold text-slate-400 uppercase">คณะที่เกี่ยวข้อง</p>
+                    <h2 class="text-3xl font-extrabold text-slate-800">${[...new Set(data.map(i => i[COL.FACULTY]))].length}</h2>
+                </div>
+            `;
+            $('#kpiContainer').html(html);
         }
 
-        function renderBarChart(data) {
-            const facultyCounts = data.reduce((acc, item) => {
-                const fac = item[COL.FACULTY] || 'ไม่ระบุ';
-                acc[fac] = (acc[fac] || 0) + 1;
-                return acc;
-            }, {});
+        function renderCharts(data) {
+            // Bar Chart: Avg Score by Faculty
+            const facMap = {};
+            data.forEach(r => {
+                const fac = r[COL.FACULTY];
+                if(!facMap[fac]) facMap[fac] = { sum: 0, count: 0 };
+                const score = parseFloat(rowAvg(r));
+                if(score > 0) {
+                    facMap[fac].sum += score;
+                    facMap[fac].count++;
+                }
+            });
 
-            const ctx = document.getElementById('barChart').getContext('2d');
-            if (barChart) barChart.destroy();
+            const labels = Object.keys(facMap);
+            const values = labels.map(l => (facMap[l].sum / facMap[l].count).toFixed(2));
 
-            barChart = new Chart(ctx, {
+            if(charts.bar) charts.bar.destroy();
+            charts.bar = new Chart($('#barChart'), {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(facultyCounts),
-                    datasets: [{
-                        label: 'จำนวนหลักสูตร',
-                        data: Object.values(facultyCounts),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 6
-                    }]
+                    labels,
+                    datasets: [{ label: 'คะแนนเฉลี่ยรวม 8 องค์', data: values, backgroundColor: '#3b82f6' }]
                 },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // Donut Chart
+            const lvls = data.reduce((acc, r) => { acc[r[COL.LEVEL]] = (acc[r[COL.LEVEL]] || 0) + 1; return acc; }, {});
+            if(charts.donut) charts.donut.destroy();
+            charts.donut = new Chart($('#donutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(lvls),
+                    datasets: [{ data: Object.values(lvls), backgroundColor: ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b'] }]
+                },
+                options: { maintainAspectRatio: false }
             });
         }
 
-        function renderDonutChart(data) {
-            const levelCounts = data.reduce((acc, item) => {
-                const lvl = item[COL.LEVEL] || 'อื่นๆ';
-                acc[lvl] = (acc[lvl] || 0) + 1;
-                return acc;
-            }, {});
-
-            const ctx = document.getElementById('donutChart').getContext('2d');
-            if (donutChart) donutChart.destroy();
-
-            donutChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(levelCounts),
-                    datasets: [{
-                        data: Object.values(levelCounts),
-                        backgroundColor: ['#60a5fa', '#34d399', '#f59e0b', '#f87171']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
+        function rowAvg(row) {
+            let sum = 0, count = 0;
+            for(let i=1; i<=8; i++) {
+                let v = parseFloat(row[`องค์ ${i}`]);
+                if(!isNaN(v)) { sum += v; count++; }
+            }
+            return count > 0 ? (sum/count).toFixed(2) : 0;
         }
 
         function renderTable(data) {
-            if ($.fn.DataTable.isDataTable('#courseTable')) {
-                dataTable.destroy();
-            }
+            if (dataTable) dataTable.destroy();
+            
+            const html = data.map(row => {
+                const avg = rowAvg(row);
+                return `
+                    <tr>
+                        <td class="font-bold text-blue-900">${row[COL.FACULTY]}</td>
+                        <td>${row[COL.COURSE]}</td>
+                        <td>${row[COL.YEAR]}</td>
+                        ${[1,2,3,4,5,6,7,8].map(n => `<td class="score-cell ${getScoreClass(row['องค์ '+n])}">${row['องค์ '+n] || '-'}</td>`).join('')}
+                        <td class="font-bold text-center bg-slate-50">${avg > 0 ? avg : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
 
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-
-            data.forEach(item => {
-                const row = `<tr>
-                    <td>${item[COL.FACULTY] || '-'}</td>
-                    <td class="font-medium">${item[COL.COURSE] || '-'}</td>
-                    <td>${item[COL.LEVEL] || '-'}</td>
-                    <td>${item[COL.YEAR_1] || '-'}</td>
-                    <td>
-                        <span class="px-2 py-1 rounded-full text-xs ${item[COL.RESULT_1] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}">
-                            ${item[COL.RESULT_1] || 'ยังไม่มีผล'}
-                        </span>
-                    </td>
-                </tr>`;
-                tbody.innerHTML += row;
-            });
-
-            dataTable = $('#courseTable').DataTable({
+            $('#tableBody').html(html);
+            dataTable = $('#mainTable').DataTable({ 
                 pageLength: 10,
-                language: {
-                    search: "ค้นหาหลักสูตร:",
-                    lengthMenu: "แสดง _MENU_ รายการ",
-                    info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
-                    paginate: {
-                        first: "หน้าแรก",
-                        last: "หน้าสุดท้าย",
-                        next: "ถัดไป",
-                        previous: "ก่อนหน้า"
-                    }
-                }
+                order: [[0, 'asc']],
+                language: { search: "ค้นหาหลักสูตร/คณะ:" }
             });
+        }
+
+        function getScoreClass(val) {
+            const v = parseFloat(val);
+            if(isNaN(v)) return 'text-gray-300';
+            if(v >= 4) return 'text-emerald-600';
+            if(v >= 3) return 'text-blue-600';
+            return 'text-rose-500';
+        }
+
+        function resetFilters() {
+            $('#facultyFilter, #yearFilter, #statusFilter').val('All');
+            updateDisplay();
         }
     </script>
 </body>
