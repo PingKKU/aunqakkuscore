@@ -3,302 +3,270 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AUN-QA Advanced Dashboard</title>
+    <title>AUN-QA Executive Dashboard</title>
     
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css">
-    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .filter-label { font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; }
-        .score-cell { font-weight: bold; text-align: center; width: 40px; }
+        body { font-family: 'Inter', 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        .heatmap-cell { transition: all 0.2s; }
+        .heatmap-cell:hover { transform: scale(1.05); cursor: default; }
+        /* AUN-QA Scoring Colors */
+        .score-red { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .score-yellow { background-color: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+        .score-green { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .score-empty { background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
     </style>
 </head>
-<body>
+<body class="text-slate-800">
 
-    <nav class="bg-[#1e293b] text-white p-4 sticky top-0 z-40 shadow-md">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="bg-blue-500 p-2 rounded-lg">
-                    <i class="fas fa-shield-halved text-xl"></i>
-                </div>
-                <h1 class="text-lg font-bold">AUN-QA Assessment Tracking</h1>
+    <!-- Header Section -->
+    <header class="bg-indigo-900 text-white shadow-lg p-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">AUN-QA Assessment Dashboard</h1>
+                <p class="text-indigo-200 text-sm">Educational Quality Assurance Tracking System</p>
             </div>
-            <div id="lastUpdated" class="text-xs text-slate-400 font-mono text-right"></div>
+            <div id="sync-status" class="bg-indigo-800 px-4 py-2 rounded-full text-xs font-mono">
+                Status: Connecting to Live Data...
+            </div>
         </div>
-    </nav>
+    </header>
 
-    <main class="container mx-auto p-4 space-y-6">
+    <main class="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
         
-        <!-- Filters Section -->
-        <div class="card p-5 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div class="flex flex-col">
-                <label class="filter-label">คณะ (Faculty)</label>
-                <select id="facultyFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
-                    <option value="All">ทั้งหมดทุกคณะ</option>
+        <!-- Filter Controls -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-slate-600">คณะ (Faculty)</label>
+                <select id="faculty-select" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">-- กำลังโหลดข้อมูล --</option>
                 </select>
             </div>
-            <div class="flex flex-col">
-                <label class="filter-label">ปีการศึกษาที่ตรวจ (Year)</label>
-                <select id="yearFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
-                    <option value="All">ทุกปีการศึกษา</option>
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-slate-600">หลักสูตร (Program)</label>
+                <select id="program-select" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">-- เลือกคณะก่อน --</option>
                 </select>
             </div>
-            <div class="flex flex-col">
-                <label class="filter-label">สถานะการประเมิน (Status องค์ 1-8)</label>
-                <select id="statusFilter" class="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
-                    <option value="All">ทั้งหมด</option>
-                    <option value="Completed">ประเมินครบ 8 องค์ประกอบ</option>
-                    <option value="Pending">ยังประเมินไม่ครบ</option>
-                </select>
-            </div>
-            <div class="flex items-end">
-                <button onclick="resetFilters()" class="text-sm text-blue-600 hover:underline">ล้างตัวกรองทั้งหมด</button>
-            </div>
-        </div>
+        </section>
 
-        <!-- KPI Cards -->
-        <div id="kpiContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- KPIs dynamicly filled -->
-        </div>
-
-        <!-- Visual Analytics -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="card p-6">
-                <h3 class="font-bold text-slate-700 mb-4 tracking-tight uppercase text-sm">การกระจายตัวของคะแนนเฉลี่ยรายคณะ</h3>
-                <div class="h-72"><canvas id="barChart"></canvas></div>
+        <!-- Charts Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Radar Chart -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold mb-4 text-slate-700">AUN-QA Criteria Profile (C1 - C8)</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
             </div>
-            <div class="card p-6">
-                <h3 class="font-bold text-slate-700 mb-4 tracking-tight uppercase text-sm">สัดส่วนระดับหลักสูตร</h3>
-                <div class="h-72"><canvas id="donutChart"></canvas></div>
+            <!-- Bar Chart -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold mb-4 text-slate-700">Program Comparison (Faculty Overview)</h3>
+                <div class="chart-container">
+                    <canvas id="barChart"></canvas>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Detailed Table -->
-        <div class="card p-6 overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-slate-700 uppercase text-sm">ตารางข้อมูลและคะแนนรายองค์ประกอบ (องค์ 1-8)</h3>
+        <!-- Heatmap Table -->
+        <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-slate-700">Detailed Sub-criteria Assessment (C1.1 - C8.5)</h3>
+                <div class="flex gap-4 text-xs">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 score-red rounded"></span> 1-2</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 score-yellow rounded"></span> 3</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 score-green rounded"></span> 4+</span>
+                </div>
             </div>
             <div class="overflow-x-auto">
-                <table id="mainTable" class="display w-full text-xs hover" style="width:100%">
+                <table class="w-full border-collapse text-xs text-center" id="heatmap-table">
                     <thead>
-                        <tr class="bg-slate-50">
-                            <th>คณะ</th>
-                            <th>หลักสูตร</th>
-                            <th>ปีที่ตรวจ</th>
-                            <th>องค์ 1</th>
-                            <th>องค์ 2</th>
-                            <th>องค์ 3</th>
-                            <th>องค์ 4</th>
-                            <th>องค์ 5</th>
-                            <th>องค์ 6</th>
-                            <th>องค์ 7</th>
-                            <th>องค์ 8</th>
-                            <th>เฉลี่ย</th>
+                        <tr id="table-header" class="bg-slate-100 text-slate-600 uppercase tracking-wider">
+                            <!-- Headers dynamically injected -->
                         </tr>
                     </thead>
-                    <tbody id="tableBody"></tbody>
+                    <tbody id="table-body">
+                        <!-- Data rows dynamically injected -->
+                    </tbody>
                 </table>
             </div>
-        </div>
+        </section>
     </main>
 
-    <div id="loading" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-2xl text-center">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p class="text-slate-600 font-medium">กำลังโหลดฐานข้อมูล AUN-QA...</p>
-        </div>
-    </div>
-
     <script>
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1UaRHmu-gK0qcn7tfsJENuFCIzJ9YCgpVWSWHLGGSNQ4/export?format=csv&gid=1573666531';
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/1UaRHmu-gK0qcn7tfsJENuFCIzJ9YCgpVWSWHLGGSNQ4/export?format=csv&gid=1573666531';
         
-        // Data Mapping
-        const COL = {
-            FACULTY: 'คณะ',
-            COURSE: 'หลักสูตร',
-            YEAR: 'ปีการศึกษาที่ต้องรับการตรวจประเมินครั้งที่ 1',
-            LEVEL: 'ระดับการศึกษา',
-            SCORE_START: 5 // Index where 'องค์ 1' usually starts in this specific CSV structure
+        let rawData = [];
+        let radarChartInstance = null;
+        let barChartInstance = null;
+
+        // Data processing helper
+        const getScoreClass = (val) => {
+            const num = parseFloat(val);
+            if (isNaN(num) || val === '') return 'score-empty';
+            if (num <= 2) return 'score-red';
+            if (num === 3) return 'score-yellow';
+            return 'score-green';
         };
 
-        let rawData = [];
-        let charts = {};
-        let dataTable;
-
-        $(document).ready(() => {
-            fetchData();
-        });
-
-        async function fetchData() {
-            Papa.parse(SHEET_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    rawData = results.data;
-                    initDashboard();
-                    $('#loading').fadeOut();
-                    $('#lastUpdated').text(`DATA SYNCED: ${new Date().toLocaleString()}`);
-                }
-            });
-        }
-
-        function initDashboard() {
-            populateSelect('facultyFilter', COL.FACULTY);
-            populateSelect('yearFilter', COL.YEAR);
-            
-            // Initial render
-            updateDisplay();
-
-            // Listeners
-            $('#facultyFilter, #yearFilter, #statusFilter').change(() => updateDisplay());
-        }
-
-        function populateSelect(id, colName) {
-            const values = [...new Set(rawData.map(i => i[colName]))].filter(Boolean).sort();
-            values.forEach(v => {
-                $(`#${id}`).append(`<option value="${v}">${v}</option>`);
-            });
-        }
-
-        function updateDisplay() {
-            const fFac = $('#facultyFilter').val();
-            const fYear = $('#yearFilter').val();
-            const fStat = $('#statusFilter').val();
-
-            const filtered = rawData.filter(row => {
-                const matchFac = fFac === 'All' || row[COL.FACULTY] === fFac;
-                const matchYear = fYear === 'All' || row[COL.YEAR] === fYear;
+        async function initDashboard() {
+            try {
+                const response = await fetch(CSV_URL);
+                const csvText = await response.text();
                 
-                // Logic for "Status องค์ 1-8"
-                const hasAllScores = row['องค์ 1'] && row['องค์ 2'] && row['องค์ 3'] && row['องค์ 4'] && row['องค์ 5'] && row['องค์ 6'] && row['องค์ 7'] && row['องค์ 8'];
-                const matchStat = fStat === 'All' || (fStat === 'Completed' ? hasAllScores : !hasAllScores);
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        rawData = results.data;
+                        document.getElementById('sync-status').innerText = 'Data Live: ' + new Date().toLocaleTimeString();
+                        setupFilters();
+                    }
+                });
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                document.getElementById('sync-status').innerText = 'Error loading data';
+            }
+        }
 
-                return matchFac && matchYear && matchStat;
+        function setupFilters() {
+            const facultySelect = document.getElementById('faculty-select');
+            const programSelect = document.getElementById('program-select');
+            
+            // Get unique faculties
+            const faculties = [...new Set(rawData.map(item => item['คณะ']))].filter(Boolean);
+            
+            facultySelect.innerHTML = '<option value="">-- กรุณาเลือกคณะ --</option>';
+            faculties.forEach(fac => {
+                const opt = document.createElement('option');
+                opt.value = fac;
+                opt.innerText = fac;
+                facultySelect.appendChild(opt);
             });
 
-            renderKPIs(filtered);
-            renderCharts(filtered);
-            renderTable(filtered);
-        }
+            facultySelect.addEventListener('change', (e) => {
+                const selectedFac = e.target.value;
+                const filteredPrograms = rawData.filter(item => item['คณะ'] === selectedFac);
+                
+                programSelect.innerHTML = '<option value="">-- กรุณาเลือกหลักสูตร --</option>';
+                filteredPrograms.forEach(prog => {
+                    const opt = document.createElement('option');
+                    opt.value = prog['หลักสูตร'];
+                    opt.innerText = prog['หลักสูตร'];
+                    programSelect.appendChild(opt);
+                });
 
-        function renderKPIs(data) {
-            const total = data.length;
-            const avg = (data.reduce((sum, row) => sum + (parseFloat(row['องค์ 1']) || 0), 0) / (total || 1)).toFixed(2);
-            
-            const html = `
-                <div class="card p-5 border-b-4 border-blue-500">
-                    <p class="text-xs font-bold text-slate-400 uppercase">หลักสูตรที่เลือก</p>
-                    <h2 class="text-3xl font-extrabold text-slate-800">${total}</h2>
-                </div>
-                <div class="card p-5 border-b-4 border-emerald-500">
-                    <p class="text-xs font-bold text-slate-400 uppercase">ตรวจครบ 8 องค์ประกอบ</p>
-                    <h2 class="text-3xl font-extrabold text-slate-800">${data.filter(r => r['องค์ 1'] && r['องค์ 8']).length}</h2>
-                </div>
-                <div class="card p-5 border-b-4 border-amber-500">
-                    <p class="text-xs font-bold text-slate-400 uppercase">คะแนนเฉลี่ย (องค์ 1)</p>
-                    <h2 class="text-3xl font-extrabold text-slate-800">${avg}</h2>
-                </div>
-                <div class="card p-5 border-b-4 border-indigo-500">
-                    <p class="text-xs font-bold text-slate-400 uppercase">คณะที่เกี่ยวข้อง</p>
-                    <h2 class="text-3xl font-extrabold text-slate-800">${[...new Set(data.map(i => i[COL.FACULTY]))].length}</h2>
-                </div>
-            `;
-            $('#kpiContainer').html(html);
-        }
+                updateBarChart(selectedFac);
+            });
 
-        function renderCharts(data) {
-            // Bar Chart: Avg Score by Faculty
-            const facMap = {};
-            data.forEach(r => {
-                const fac = r[COL.FACULTY];
-                if(!facMap[fac]) facMap[fac] = { sum: 0, count: 0 };
-                const score = parseFloat(rowAvg(r));
-                if(score > 0) {
-                    facMap[fac].sum += score;
-                    facMap[fac].count++;
+            programSelect.addEventListener('change', (e) => {
+                const selectedProg = e.target.value;
+                const programData = rawData.find(item => item['หลักสูตร'] === selectedProg);
+                if (programData) {
+                    updateRadarChart(programData);
+                    updateHeatmap(programData);
                 }
             });
+        }
 
-            const labels = Object.keys(facMap);
-            const values = labels.map(l => (facMap[l].sum / facMap[l].count).toFixed(2));
+        function updateRadarChart(data) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            const labels = ['C1 รวม', 'C2 รวม', 'C3 รวม', 'C4 รวม', 'C5 รวม', 'C6 รวม', 'C7 รวม', 'C8 รวม'];
+            const scores = labels.map(label => data[label] || 0);
 
-            if(charts.bar) charts.bar.destroy();
-            charts.bar = new Chart($('#barChart'), {
+            if (radarChartInstance) radarChartInstance.destroy();
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: data['หลักสูตร'],
+                        data: scores,
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderColor: 'rgb(79, 70, 229)',
+                        pointBackgroundColor: 'rgb(79, 70, 229)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { beginAtZero: true, max: 7, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function updateBarChart(faculty) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            const facultyData = rawData.filter(item => item['คณะ'] === faculty);
+            
+            const labels = facultyData.map(item => item['หลักสูตร']);
+            // Calculate an average of C1-C8 for comparison
+            const criteria = ['C1 รวม', 'C2 รวม', 'C3 รวม', 'C4 รวม', 'C5 รวม', 'C6 รวม', 'C7 รวม', 'C8 รวม'];
+            const averages = facultyData.map(item => {
+                let sum = 0;
+                criteria.forEach(c => sum += (item[c] || 0));
+                return (sum / criteria.length).toFixed(2);
+            });
+
+            if (barChartInstance) barChartInstance.destroy();
+
+            barChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels,
-                    datasets: [{ label: 'คะแนนเฉลี่ยรวม 8 องค์', data: values, backgroundColor: '#3b82f6' }]
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Score (Overall Criteria)',
+                        data: averages,
+                        backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                        borderRadius: 6
+                    }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-
-            // Donut Chart
-            const lvls = data.reduce((acc, r) => { acc[r[COL.LEVEL]] = (acc[r[COL.LEVEL]] || 0) + 1; return acc; }, {});
-            if(charts.donut) charts.donut.destroy();
-            charts.donut = new Chart($('#donutChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(lvls),
-                    datasets: [{ data: Object.values(lvls), backgroundColor: ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b'] }]
-                },
-                options: { maintainAspectRatio: false }
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, max: 7 } }
+                }
             });
         }
 
-        function rowAvg(row) {
-            let sum = 0, count = 0;
-            for(let i=1; i<=8; i++) {
-                let v = parseFloat(row[`องค์ ${i}`]);
-                if(!isNaN(v)) { sum += v; count++; }
-            }
-            return count > 0 ? (sum/count).toFixed(2) : 0;
-        }
-
-        function renderTable(data) {
-            if (dataTable) dataTable.destroy();
+        function updateHeatmap(data) {
+            const headerRow = document.getElementById('table-header');
+            const bodyRow = document.getElementById('table-body');
             
-            const html = data.map(row => {
-                const avg = rowAvg(row);
-                return `
-                    <tr>
-                        <td class="font-bold text-blue-900">${row[COL.FACULTY]}</td>
-                        <td>${row[COL.COURSE]}</td>
-                        <td>${row[COL.YEAR]}</td>
-                        ${[1,2,3,4,5,6,7,8].map(n => `<td class="score-cell ${getScoreClass(row['องค์ '+n])}">${row['องค์ '+n] || '-'}</td>`).join('')}
-                        <td class="font-bold text-center bg-slate-50">${avg > 0 ? avg : '-'}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            $('#tableBody').html(html);
-            dataTable = $('#mainTable').DataTable({ 
-                pageLength: 10,
-                order: [[0, 'asc']],
-                language: { search: "ค้นหาหลักสูตร/คณะ:" }
+            // Find all columns that match sub-criteria pattern (C1.1, C1.2, etc.)
+            const subCriteriaCols = Object.keys(data).filter(key => /^C[1-8]\.\d+$/.test(key));
+            
+            headerRow.innerHTML = '<th class="p-3 border border-slate-200">Criterion</th>';
+            subCriteriaCols.forEach(col => {
+                headerRow.innerHTML += `<th class="p-3 border border-slate-200">${col}</th>`;
             });
+
+            let rowHtml = `<tr class="bg-white">
+                <td class="p-3 border border-slate-200 font-bold bg-slate-50 text-left">Score</td>`;
+            
+            subCriteriaCols.forEach(col => {
+                const val = data[col];
+                const cssClass = getScoreClass(val);
+                rowHtml += `<td class="p-3 border border-slate-200 heatmap-cell ${cssClass} font-bold text-lg">${val || '-'}</td>`;
+            });
+            rowHtml += '</tr>';
+            
+            bodyRow.innerHTML = rowHtml;
         }
 
-        function getScoreClass(val) {
-            const v = parseFloat(val);
-            if(isNaN(v)) return 'text-gray-300';
-            if(v >= 4) return 'text-emerald-600';
-            if(v >= 3) return 'text-blue-600';
-            return 'text-rose-500';
-        }
-
-        function resetFilters() {
-            $('#facultyFilter, #yearFilter, #statusFilter').val('All');
-            updateDisplay();
-        }
+        // Run app
+        initDashboard();
     </script>
 </body>
 </html>
